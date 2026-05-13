@@ -1,0 +1,10 @@
+{
+  "name": "btp-ai",
+  "private": true,
+  "scripts": {
+    "dev": "py -3.13 -m streamlit run frontend/streamlit_app.py",
+    "dev:api": "py -3.13 -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:frontend": "py -3.13 -m streamlit run frontend/streamlit_app.py",
+    "dev:flask": "py -3.13 app.py"
+  }
+}

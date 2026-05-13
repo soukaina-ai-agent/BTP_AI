@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+btp_ai.log
+uploads/
+chroma_store/
+vector_store/
+node_modules/
+frontend/node_modules/
+.railway/
