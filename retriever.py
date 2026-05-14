@@ -38,10 +38,10 @@ DOCS_FILE = os.path.join(VECTOR_STORE_PATH, "documents.pkl")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 FALLBACK_EMBEDDING_DIM = _int_env("FALLBACK_EMBEDDING_DIM", 384)
 TOP_K = _int_env("TOP_K", 5)
-BASE_URL = os.getenv("BASE_URL", "https://api.openai.com/v1")
+BASE_URL = os.getenv("BASE_URL") or "https://api.openai.com/v1"
 API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
-MODEL = os.getenv("MODEL", os.getenv("OPENAI_MODEL", "gpt-4.1"))
-OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+MODEL = os.getenv("MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4.1"
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL") or "text-embedding-3-small"
 USE_OPENAI_EMBEDDINGS = os.getenv("USE_OPENAI_EMBEDDINGS", "").strip().lower()
 
 

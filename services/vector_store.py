@@ -17,7 +17,7 @@ from services.storage_paths import persistent_path
 logger = logging.getLogger(__name__)
 
 CHROMA_PATH = persistent_path("CHROMA_PATH", "chroma_store")
-CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "btp_documents")
+CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION") or "btp_documents"
 
 
 def _stable_id(text: str, metadata: Dict[str, Any]) -> str:

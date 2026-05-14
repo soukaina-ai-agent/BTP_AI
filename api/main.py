@@ -39,7 +39,7 @@ app = FastAPI(
 
 origins = [
     origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "*").split(",")
+    for origin in (os.getenv("CORS_ORIGINS") or "*").split(",")
     if origin.strip()
 ]
 
