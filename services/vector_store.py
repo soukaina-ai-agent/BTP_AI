@@ -12,13 +12,11 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from services.storage_paths import persistent_path
+
 logger = logging.getLogger(__name__)
 
-_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
-CHROMA_PATH = os.getenv(
-    "CHROMA_PATH",
-    os.path.join(_VOLUME_PATH, "chroma_store") if _VOLUME_PATH else "chroma_store",
-)
+CHROMA_PATH = persistent_path("CHROMA_PATH", "chroma_store")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "btp_documents")
 
 
@@ -53,6 +51,7 @@ class ChromaVectorStore:
             raise RuntimeError("Chroma support requires chromadb. Install requirements.txt.") from e
 
         os.makedirs(persist_path, exist_ok=True)
+        logger.info("[Chroma] Using persistent path: %s", persist_path)
         self._client = chromadb.PersistentClient(path=persist_path)
         self._collection = self._client.get_or_create_collection(
             name=collection_name,

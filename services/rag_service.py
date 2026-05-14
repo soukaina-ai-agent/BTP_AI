@@ -1,7 +1,6 @@
 """RAG service used by the FastAPI backend."""
 
 import logging
-import os
 import re
 import unicodedata
 from typing import Any, Dict, List, Optional
@@ -9,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
 from retriever import EmbeddingEngine, LLMEngine, TOP_K
-from services.vector_store import ChromaVectorStore
+from services.vector_store import CHROMA_PATH, ChromaVectorStore
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -102,7 +101,7 @@ class RAGService:
             "projects": sorted({d["project"] for d in seen.values() if d["project"]}),
             "documents": list(seen.values()),
             "vector_store": "chroma",
-            "collection_path": os.getenv("CHROMA_PATH", "chroma_store"),
+            "collection_path": CHROMA_PATH,
         }
 
     def reset(self):

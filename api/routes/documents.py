@@ -10,14 +10,11 @@ from api.dependencies import get_rag_service
 from api.schemas import UploadResponse
 from ingest import DocumentIngestor
 from services.rag_service import RAGService
+from services.storage_paths import persistent_path
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
-UPLOAD_FOLDER = os.getenv(
-    "UPLOAD_FOLDER",
-    os.path.join(_VOLUME_PATH, "uploads") if _VOLUME_PATH else "uploads",
-)
+UPLOAD_FOLDER = persistent_path("UPLOAD_FOLDER", "uploads")
 ALLOWED_EXTENSIONS = {"pdf", "txt", "docx", "png", "jpg", "jpeg"}
 
 
