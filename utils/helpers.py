@@ -44,8 +44,15 @@ def format_file_size(size_bytes: int) -> str:
 
 def get_env_info() -> dict:
     """Return current configuration for diagnostics."""
+    key_source = None
+    if os.getenv("OPENAI_API_KEY"):
+        key_source = "OPENAI_API_KEY"
+    elif os.getenv("GITHUB_TOKEN"):
+        key_source = "GITHUB_TOKEN"
+
     return {
-        "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
+        "llm_configured": key_source is not None,
+        "llm_key_source": key_source,
         "embedding_model": os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         "openai_base_url": os.getenv("BASE_URL", "https://api.openai.com/v1"),
         "openai_model": os.getenv("MODEL", os.getenv("OPENAI_MODEL", "gpt-4.1")),

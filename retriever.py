@@ -277,9 +277,9 @@ class LLMEngine:
                 return self._openai_generate(system_prompt, user_prompt)
             except Exception as e:
                 logger.warning("LLM generation failed, using extractive fallback: %s", e)
-                return self._fallback_generate(question, context_chunks)
+                return self._fallback_generate(question, context_chunks, reason="llm_error")
         else:
-            return self._fallback_generate(question, context_chunks)
+            return self._fallback_generate(question, context_chunks, reason="missing_key")
 
     def _openai_generate(self, system: str, user: str) -> str:
         client = _openai_client()
@@ -294,7 +294,12 @@ class LLMEngine:
         )
         return response.choices[0].message.content.strip()
 
-    def _fallback_generate(self, question: str, chunks: List[Dict[str, Any]]) -> str:
+    def _fallback_generate(
+        self,
+        question: str,
+        chunks: List[Dict[str, Any]],
+        reason: str = "missing_key",
+    ) -> str:
         """
         Fallback extractif quand aucune clé API n'est configurée.
         Retourne directement les passages les plus pertinents.
@@ -305,6 +310,11 @@ class LLMEngine:
         answer_parts = [
             "⚠️  Aucune clé API LLM configurée — passages extraits directement :\n"
         ]
+        if reason == "llm_error":
+            answer_parts[0] = "Generation LLM indisponible - passages extraits directement :\n"
+        else:
+            answer_parts[0] = "Aucune cle API LLM configuree - passages extraits directement :\n"
+
         for i, chunk in enumerate(chunks[:3], 1):
             source = chunk["metadata"].get("source", "Inconnu")
             answer_parts.append(f"**Passage {i}** (source : {source}) :\n{chunk['text']}\n")

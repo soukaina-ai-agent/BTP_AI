@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 
 from api.dependencies import get_rag_service
 from services.rag_service import RAGService
+from utils.helpers import get_env_info
 
 router = APIRouter(tags=["system"])
 
@@ -22,6 +23,11 @@ def health():
 @router.get("/stats")
 def stats(rag: RAGService = Depends(get_rag_service)):
     return rag.get_stats()
+
+
+@router.get("/config")
+def config():
+    return get_env_info()
 
 
 @router.post("/reset")
