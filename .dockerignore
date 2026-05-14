@@ -5,7 +5,7 @@ __pycache__
 *.pyo
 *.pyd
 .Python
-btp_ai.log
+*.log
 uploads
 chroma_store
 vector_store

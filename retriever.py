@@ -8,6 +8,7 @@ import json
 import logging
 import hashlib
 import pickle
+import re
 from typing import List, Dict, Any, Optional
 
 import numpy as np
@@ -24,6 +25,7 @@ VECTOR_STORE_PATH = "vector_store"
 INDEX_FILE = os.path.join(VECTOR_STORE_PATH, "faiss.index")
 DOCS_FILE = os.path.join(VECTOR_STORE_PATH, "documents.pkl")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+FALLBACK_EMBEDDING_DIM = int(os.getenv("FALLBACK_EMBEDDING_DIM", "384"))
 TOP_K = int(os.getenv("TOP_K", "5"))
 BASE_URL = os.getenv("BASE_URL", "https://api.openai.com/v1")
 API_KEY = os.getenv("OPENAI_API_KEY")
@@ -51,6 +53,9 @@ def _has_openai_key() -> bool:
         "sk-your-key-here",
         "your-openai-api-key",
         "your-api-key",
+        "your_key_here",
+        "your-real-key-here",
+        "your_real_key_here",
     }
     return key not in placeholders
 
@@ -73,10 +78,21 @@ class EmbeddingEngine:
         if self._use_openai:
             logger.info("Using OpenAI embeddings")
             self._model = _openai_client()
+        elif EMBEDDING_MODEL.strip().lower() in {"hash", "offline-hash", "fallback"}:
+            logger.info("Using offline hash embeddings")
+            self._model = HashEmbeddingModel(dim=FALLBACK_EMBEDDING_DIM)
         else:
             logger.info(f"Loading SentenceTransformer: {EMBEDDING_MODEL}")
-            from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(EMBEDDING_MODEL)
+            try:
+                from sentence_transformers import SentenceTransformer
+                self._model = SentenceTransformer(EMBEDDING_MODEL)
+            except Exception as e:
+                logger.warning(
+                    "Could not load SentenceTransformer '%s'. Using offline hash embeddings: %s",
+                    EMBEDDING_MODEL,
+                    e,
+                )
+                self._model = HashEmbeddingModel(dim=FALLBACK_EMBEDDING_DIM)
 
     def embed(self, texts: List[str]) -> np.ndarray:
         """Return embedding matrix of shape (N, dim)."""
@@ -96,6 +112,33 @@ class EmbeddingEngine:
         # L2-normalize
         norms = np.linalg.norm(arr, axis=1, keepdims=True)
         return arr / np.maximum(norms, 1e-9)
+
+
+class HashEmbeddingModel:
+    """Small offline fallback when the SentenceTransformer model is unavailable."""
+
+    def __init__(self, dim: int = 384):
+        self.dim = dim
+
+    def encode(
+        self,
+        texts: List[str],
+        show_progress_bar: bool = False,
+        normalize_embeddings: bool = True,
+    ) -> np.ndarray:
+        vectors = np.zeros((len(texts), self.dim), dtype="float32")
+        for row, text in enumerate(texts):
+            tokens = re.findall(r"[\wÀ-ÿ]+", text.lower())
+            for token in tokens:
+                digest = hashlib.sha256(token.encode("utf-8")).digest()
+                index = int.from_bytes(digest[:4], "big") % self.dim
+                sign = 1.0 if digest[4] % 2 == 0 else -1.0
+                vectors[row, index] += sign
+
+        if normalize_embeddings:
+            norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+            vectors = vectors / np.maximum(norms, 1e-9)
+        return vectors
 
 
 class FAISSStore:
@@ -203,23 +246,38 @@ class LLMEngine:
             "et les bonnes pratiques métier BTP. "
             "\n\n"
             "RÈGLES ABSOLUES :\n"
-            "1. Réponds UNIQUEMENT à partir des documents de contexte fournis.\n"
-            "2. Si l'information n'est pas dans le contexte, dis clairement : "
+            "1. La question a déjà été filtrée par le backend. Si elle contient un terme BTP court "
+            "comme BTP, béton, maçonnerie, fondation, DTU, chantier, BIM ou conformité, considère-la comme liée au BTP.\n"
+            "2. Réponds UNIQUEMENT aux questions liées au BTP, à la construction, au génie civil, "
+            "aux documents techniques, aux emails de chantier, aux normes, aux risques, à la conformité ou aux maquettes BIM.\n"
+            "3. Si la question est très générale mais liée au BTP, donne une réponse courte basée sur les extraits "
+            "et propose 2 ou 3 axes de précision possibles.\n"
+            "4. Si la question n'est clairement pas liée au BTP, refuse poliment et dis : "
+            "'Je peux seulement répondre aux questions liées au BTP et aux documents indexés.'\n"
+            "5. Réponds UNIQUEMENT à partir des documents de contexte fournis.\n"
+            "6. Si l'information n'est pas dans le contexte, dis clairement : "
             "'Cette information n'est pas disponible dans les documents chargés.'\n"
-            "3. Cite toujours la référence du document source (ex: DTU 13.1, NF C 15-100, RE 2020).\n"
-            "4. Sois précis, professionnel et structuré (utilise des listes à puces ou étapes numérotées).\n"
-            "5. Pour les valeurs numériques (dimensions, résistances, températures), cite-les exactement.\n"
-            "6. Réponds en français."
+            "7. Cite toujours la référence du document source (ex: DTU 13.1, NF C 15-100, RE 2020).\n"
+            "8. Sois précis, professionnel et structuré (utilise des listes à puces ou étapes numérotées).\n"
+            "9. Pour les valeurs numériques (dimensions, résistances, températures), cite-les exactement.\n"
+            "10. Réponds en français."
         )
 
         user_prompt = (
             f"Context documents:\n{context}\n\n"
             f"Question: {question}\n\n"
-            "Provide a clear and detailed answer based solely on the context above."
+            "The backend has already accepted this question as BTP-related. "
+            "If it is broad, answer briefly from the context and suggest useful follow-up angles. "
+            "Only refuse if it is clearly unrelated to BTP/construction/civil engineering. "
+            "Provide a clear answer based solely on the context above."
         )
 
         if self._use_openai:
-            return self._openai_generate(system_prompt, user_prompt)
+            try:
+                return self._openai_generate(system_prompt, user_prompt)
+            except Exception as e:
+                logger.warning("LLM generation failed, using extractive fallback: %s", e)
+                return self._fallback_generate(question, context_chunks)
         else:
             return self._fallback_generate(question, context_chunks)
 

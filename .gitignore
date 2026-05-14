@@ -2,7 +2,7 @@
 .venv/
 __pycache__/
 *.py[cod]
-btp_ai.log
+*.log
 uploads/
 chroma_store/
 vector_store/
