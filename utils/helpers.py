@@ -7,6 +7,8 @@ import re
 import hashlib
 from typing import Optional
 
+from retriever import TOP_K
+
 
 def truncate_text(text: str, max_chars: int = 300) -> str:
     """Truncate text to max_chars, ending at a word boundary."""
@@ -56,5 +58,5 @@ def get_env_info() -> dict:
         "embedding_model": os.getenv("EMBEDDING_MODEL") or "sentence-transformers/all-MiniLM-L6-v2",
         "openai_base_url": os.getenv("BASE_URL") or "https://api.openai.com/v1",
         "openai_model": os.getenv("MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4.1",
-        "top_k": int(os.getenv("TOP_K") or "5"),
+        "top_k": TOP_K,
     }
