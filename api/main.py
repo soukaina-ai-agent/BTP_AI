@@ -8,11 +8,11 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+load_dotenv()
+
 from api.dependencies import rag_service
 from api.routes import analysis, bim, documents, email, query, system
 from services.knowledge_service import autoload_knowledge
-
-load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,

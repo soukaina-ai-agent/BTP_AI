@@ -1,53 +1,259 @@
 """Streamlit frontend for the BTP AI platform."""
 
 import os
+from pathlib import Path
 from typing import Dict
 
 import requests
 import streamlit as st
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
+APP_ROOT = Path(__file__).resolve().parents[1]
+LOGO_PATH = APP_ROOT / "image.png"
 
 st.set_page_config(
-    page_title="BTP AI",
-    page_icon="BT",
+    page_title="E-MPGT AI",
+    page_icon="EM",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+if LOGO_PATH.exists():
+    try:
+        st.logo(str(LOGO_PATH), size="large")
+    except Exception:
+        pass
+
 st.markdown(
     """
     <style>
+    :root {
+        --empgt-navy: #071f3d;
+        --empgt-blue: #123d68;
+        --empgt-green: #43a047;
+        --empgt-green-dark: #2f7d32;
+        --empgt-ink: #172033;
+        --empgt-muted: #667085;
+        --empgt-border: #d9e2ec;
+        --empgt-bg: #f5f8fb;
+    }
+
+    html, body, [data-testid="stAppViewContainer"] {
+        background: var(--empgt-bg);
+        color: var(--empgt-ink);
+    }
+
     .block-container {
-        max-width: 1180px;
-        padding-top: 1.25rem;
+        max-width: 1220px;
+        padding-top: 1.1rem;
+        padding-bottom: 2.5rem;
     }
+
+    header[data-testid="stHeader"] {
+        background: rgba(245, 248, 251, 0.86);
+        border-bottom: 1px solid rgba(217, 226, 236, 0.78);
+        backdrop-filter: blur(10px);
+    }
+
     [data-testid="stSidebar"] {
-        min-width: 245px;
+        min-width: 260px;
+        background: #ffffff;
+        border-right: 1px solid var(--empgt-border);
     }
+
+    [data-testid="stSidebar"] [data-testid="stImage"] {
+        margin-bottom: 0.35rem;
+    }
+
+    [data-testid="stSidebarHeader"] img,
+    [data-testid="stSidebarNav"] img {
+        max-height: 82px;
+        width: auto;
+    }
+
+    [data-testid="stSidebar"] hr {
+        margin: 1.05rem 0;
+        border-color: var(--empgt-border);
+    }
+
     [data-testid="stSidebar"] .stButton > button {
         width: 100%;
         justify-content: flex-start;
-        border-radius: 8px;
-        min-height: 42px;
+        border-radius: 7px;
+        min-height: 43px;
         border: 1px solid transparent;
+        color: var(--empgt-navy);
+        background: transparent;
+        font-weight: 600;
     }
+
+    [data-testid="stSidebar"] .stButton > button:hover {
+        border-color: rgba(67, 160, 71, 0.35);
+        background: rgba(67, 160, 71, 0.08);
+        color: var(--empgt-green-dark);
+    }
+
     [data-testid="stSidebar"] .stButton > button[kind="primary"] {
-        border-color: rgba(49, 91, 255, 0.32);
+        border-color: rgba(67, 160, 71, 0.35);
+        background: rgba(67, 160, 71, 0.12);
+        color: var(--empgt-green-dark);
     }
+
+    .stButton > button[kind="primary"],
+    .stDownloadButton > button[kind="primary"] {
+        background: var(--empgt-green);
+        border-color: var(--empgt-green);
+        color: #ffffff;
+        border-radius: 7px;
+    }
+
+    .stButton > button[kind="primary"]:hover,
+    .stDownloadButton > button[kind="primary"]:hover {
+        background: var(--empgt-green-dark);
+        border-color: var(--empgt-green-dark);
+        color: #ffffff;
+    }
+
+    .main-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.15rem 0 1rem 0;
+        margin-bottom: 0.75rem;
+        border-bottom: 1px solid var(--empgt-border);
+    }
+
+    .main-title-wrap {
+        min-width: 0;
+    }
+
     .main-title {
-        font-size: 1.75rem;
-        font-weight: 700;
+        color: var(--empgt-navy);
+        font-size: 1.7rem;
+        font-weight: 750;
+        line-height: 1.15;
+        margin: 0 0 0.22rem 0;
+    }
+
+    .muted {
+        color: var(--empgt-muted);
+        font-size: 0.94rem;
+        line-height: 1.45;
+    }
+
+    .brand-eyebrow {
+        color: var(--empgt-green-dark);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
         margin-bottom: 0.25rem;
     }
-    .muted {
-        color: rgba(49, 51, 63, 0.72);
-        font-size: 0.94rem;
+
+    .brand-status {
+        align-items: center;
+        background: #ffffff;
+        border: 1px solid var(--empgt-border);
+        border-radius: 7px;
+        color: var(--empgt-blue);
+        display: inline-flex;
+        font-size: 0.82rem;
+        font-weight: 650;
+        gap: 0.45rem;
+        padding: 0.48rem 0.68rem;
+        white-space: nowrap;
+    }
+
+    .brand-dot {
+        background: var(--empgt-green);
+        border-radius: 999px;
+        display: inline-block;
+        height: 0.55rem;
+        width: 0.55rem;
+    }
+
+    .sidebar-brand {
+        color: var(--empgt-navy);
+        font-size: 0.98rem;
+        font-weight: 800;
+        margin-top: 0.35rem;
+    }
+
+    .sidebar-caption {
+        color: var(--empgt-muted);
+        font-size: 0.82rem;
+        line-height: 1.35;
+        margin-bottom: 0.75rem;
+    }
+
+    div[data-testid="stMetric"] {
+        background: #ffffff;
+        border: 1px solid var(--empgt-border);
+        border-radius: 8px;
+        padding: 0.9rem 1rem;
+    }
+
+    div[data-testid="stMetricLabel"] p {
+        color: var(--empgt-muted);
+        font-weight: 650;
+    }
+
+    div[data-testid="stMetricValue"] {
+        color: var(--empgt-navy);
+    }
+
+    [data-testid="stFileUploader"] section {
+        background: #ffffff;
+        border-color: rgba(18, 61, 104, 0.18);
+        border-radius: 8px;
+    }
+
+    .stChatMessage {
+        border-radius: 8px;
+    }
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.35rem;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 7px;
+        color: var(--empgt-blue);
+        font-weight: 650;
+        padding: 0.55rem 0.85rem;
+    }
+
+    @media (max-width: 720px) {
+        .main-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .brand-status {
+            white-space: normal;
+        }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+
+def page_header(title: str, subtitle: str, eyebrow: str = "E-MPGT AI") -> None:
+    st.markdown(
+        f"""
+        <div class="main-header">
+            <div class="main-title-wrap">
+                <div class="brand-eyebrow">{eyebrow}</div>
+                <div class="main-title">{title}</div>
+                <div class="muted">{subtitle}</div>
+            </div>
+            <div class="brand-status"><span class="brand-dot"></span> API connectee</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def api_post(path: str, **kwargs):
@@ -87,8 +293,11 @@ def sidebar_nav() -> str:
         st.session_state.page = pages[0][0]
 
     with st.sidebar:
-        st.markdown("### BTP AI")
-        st.caption("Assistant documents, emails et BIM")
+        st.markdown('<div class="sidebar-brand">E-MPGT AI</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="sidebar-caption">Construction, logistique et documents intelligents.</div>',
+            unsafe_allow_html=True,
+        )
         for label, icon in pages:
             is_active = st.session_state.page == label
             if st.button(
@@ -99,16 +308,15 @@ def sidebar_nav() -> str:
             ):
                 st.session_state.page = label
         st.divider()
-        st.caption(f"API: {API_URL}")
+        st.caption(f"API connectee: {API_URL}")
 
     return st.session_state.page
 
 
 def render_chat():
-    st.markdown('<div class="main-title">Chat RAG BTP</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="muted">Questions basees sur la base intelligente: documents, emails, BIM et connaissances indexees.</div>',
-        unsafe_allow_html=True,
+    page_header(
+        "Chat RAG BTP",
+        "Questions basees sur les documents, emails, BIM et connaissances indexees.",
     )
 
     filters = metadata_filters("chat")
@@ -171,8 +379,10 @@ def render_chat():
 
 
 def render_documents():
-    st.markdown('<div class="main-title">Documents</div>', unsafe_allow_html=True)
-    st.markdown('<div class="muted">Indexer des PDF, DOCX, TXT, screenshots ou photos.</div>', unsafe_allow_html=True)
+    page_header(
+        "Documents",
+        "Indexez des PDF, DOCX, TXT, screenshots ou photos pour enrichir la base intelligente.",
+    )
 
     files = st.file_uploader(
         "Fichiers",
@@ -374,7 +584,10 @@ def render_bim():
 
 
 def render_dashboard():
-    st.markdown('<div class="main-title">Tableau de bord</div>', unsafe_allow_html=True)
+    page_header(
+        "Tableau de bord",
+        "Suivez l'etat de la base, les connecteurs et les analyses metier.",
+    )
 
     try:
         stats = api_get("/stats")
@@ -395,8 +608,10 @@ def render_dashboard():
 
 
 def render_knowledge():
-    st.markdown('<div class="main-title">Knowledge</div>', unsafe_allow_html=True)
-    st.markdown('<div class="muted">Vue des documents indexes dans la base intelligente.</div>', unsafe_allow_html=True)
+    page_header(
+        "Knowledge",
+        "Vue simple des documents indexes dans la base intelligente.",
+    )
 
     try:
         stats = api_get("/stats")

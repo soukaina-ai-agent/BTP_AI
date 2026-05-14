@@ -10,11 +10,32 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 IMAGE_EXTENSIONS = {"png", "jpg", "jpeg"}
 OCR_LANG = os.getenv("OCR_LANG", "fra+eng")
 TESSERACT_CMD = os.getenv("TESSERACT_CMD")
+WINDOWS_TESSERACT_PATHS = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+)
+
+
+def _resolve_tesseract_cmd() -> str | None:
+    """Return an explicit Tesseract executable path when one is configured or obvious."""
+    if TESSERACT_CMD:
+        return TESSERACT_CMD
+
+    if os.name == "nt":
+        for candidate in WINDOWS_TESSERACT_PATHS:
+            if os.path.exists(candidate):
+                return candidate
+
+    return None
 
 
 class DocumentIngestor:
@@ -176,14 +197,16 @@ class DocumentIngestor:
         except ImportError as e:
             raise RuntimeError("OCR requires pytesseract. Install requirements.txt.") from e
 
-        if TESSERACT_CMD:
-            pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+        tesseract_cmd = _resolve_tesseract_cmd()
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
         try:
             text = pytesseract.image_to_string(image, lang=OCR_LANG)
         except pytesseract.TesseractNotFoundError as e:
             raise RuntimeError(
-                "Tesseract OCR is not installed or not in PATH. Install Tesseract and try again."
+                "Tesseract OCR is not installed or not in PATH. Install Tesseract, "
+                "or set TESSERACT_CMD in .env to the full tesseract.exe path."
             ) from e
         return text or ""
 
