@@ -5,8 +5,8 @@
     "dockerfilePath": "Dockerfile.frontend"
   },
   "deploy": {
-    "startCommand": "sh -c 'streamlit run frontend/streamlit_app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true'",
-    "healthcheckPath": "/",
+    "startCommand": "sh -c 'unset STREAMLIT_SERVER_PORT; streamlit run frontend/streamlit_app.py --server.address 0.0.0.0 --server.port ${PORT:-8501} --server.headless true'",
+    "healthcheckPath": "/_stcore/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
