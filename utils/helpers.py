@@ -56,5 +56,5 @@ def get_env_info() -> dict:
         "embedding_model": os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         "openai_base_url": os.getenv("BASE_URL", "https://api.openai.com/v1"),
         "openai_model": os.getenv("MODEL", os.getenv("OPENAI_MODEL", "gpt-4.1")),
-        "top_k": int(os.getenv("TOP_K", "5")),
+        "top_k": int(os.getenv("TOP_K") or "5"),
     }

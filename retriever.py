@@ -18,6 +18,17 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r. Using default %s.", name, raw, default)
+        return default
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -25,8 +36,8 @@ VECTOR_STORE_PATH = "vector_store"
 INDEX_FILE = os.path.join(VECTOR_STORE_PATH, "faiss.index")
 DOCS_FILE = os.path.join(VECTOR_STORE_PATH, "documents.pkl")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-FALLBACK_EMBEDDING_DIM = int(os.getenv("FALLBACK_EMBEDDING_DIM", "384"))
-TOP_K = int(os.getenv("TOP_K", "5"))
+FALLBACK_EMBEDDING_DIM = _int_env("FALLBACK_EMBEDDING_DIM", 384)
+TOP_K = _int_env("TOP_K", 5)
 BASE_URL = os.getenv("BASE_URL", "https://api.openai.com/v1")
 API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("GITHUB_TOKEN")
 MODEL = os.getenv("MODEL", os.getenv("OPENAI_MODEL", "gpt-4.1"))
