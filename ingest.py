@@ -8,7 +8,7 @@ import re
 import io
 import logging
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from dotenv import load_dotenv
 
@@ -51,7 +51,8 @@ class DocumentIngestor:
 
     def process_file(
         self, filepath: str, filename: str, project: str = "Général",
-        lot: str = "", auteur: str = "", criticite: str = "Normale"
+        lot: str = "", auteur: str = "", criticite: str = "Normale",
+        extra_metadata: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Main entry point: load → clean → chunk → attach metadata.
@@ -86,6 +87,7 @@ class DocumentIngestor:
             "file_type": ext,
             "ingested_at": datetime.utcnow().isoformat(),
             "total_chunks": len(chunks),
+            **(extra_metadata or {}),
         }
 
         result = []

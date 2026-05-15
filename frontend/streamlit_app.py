@@ -214,14 +214,36 @@ st.markdown(
     }
 
     .stTabs [data-baseweb="tab-list"] {
-        gap: 0.35rem;
+        gap: 0.55rem;
+        border-bottom: 1px solid var(--empgt-border);
     }
 
     .stTabs [data-baseweb="tab"] {
-        border-radius: 7px;
+        background: #ffffff;
+        border: 1px solid var(--empgt-border);
+        border-radius: 8px 8px 0 0;
         color: var(--empgt-blue);
-        font-weight: 650;
-        padding: 0.55rem 0.85rem;
+        font-size: 1.02rem;
+        font-weight: 750;
+        min-height: 46px;
+        padding: 0.68rem 1.05rem;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        background: rgba(67, 160, 71, 0.08);
+        border-color: rgba(67, 160, 71, 0.35);
+        color: var(--empgt-green-dark);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: rgba(67, 160, 71, 0.12);
+        border-color: rgba(67, 160, 71, 0.5);
+        color: var(--empgt-green-dark);
+    }
+
+    .stTabs [data-baseweb="tab-highlight"] {
+        background-color: var(--empgt-green);
+        height: 3px;
     }
 
     @media (max-width: 720px) {
@@ -416,13 +438,13 @@ def render_documents():
 
 
 def render_analysis():
-    st.subheader("Conformite et risques")
+    st.subheader("Analyse de conformité et risques de chantier")
     col1, col2 = st.columns(2)
     analysis_project = col1.text_input("Projet a analyser", "", key="analysis_project")
     analysis_lot = col2.text_input("Lot a analyser", "", key="analysis_lot")
     analysis_question = st.text_area(
         "Objectif d'analyse",
-        "Analyse les risques de non-conformite BTP, omissions, incoherences et actions recommandees.",
+        "Analyse les risques de non-conformité BTP, omissions, incohérences et actions recommandées.",
         height=100,
         key="analysis_question",
     )
@@ -440,17 +462,197 @@ def render_analysis():
                         "top_k": analysis_k,
                     },
                 )
-            st.metric("Severite globale", result.get("overall_severity", "medium"))
+            st.metric("Sévérité globale", result.get("overall_severity", "medium"))
             st.write(result.get("summary", ""))
             for risk in result.get("risks", []):
                 st.warning(f"{risk.get('severity', '').upper()} - {risk.get('title', '')}")
                 st.write(risk.get("evidence", ""))
                 st.info(risk.get("recommendation", ""))
                 st.caption(f"Source: {risk.get('source', '')}")
-            with st.expander("Sources utilisees"):
+            with st.expander("Sources utilisées"):
                 st.json(result.get("sources", []))
         except Exception as e:
             st.error(f"Erreur analyse: {e}")
+
+
+def render_regulatory_cockpit():
+    st.subheader("Conformité réglementaire IA")
+
+    question_catalog = {
+        "Structure": [
+            "Quels justificatifs demander avant validation d'un voile béton armé ?",
+            "Comment contrôler la cohérence entre plan de coffrage, ferraillage et note de calcul ?",
+        ],
+        "Étanchéité": [
+            "Quels points vérifier avant réception d'une toiture-terrasse inaccessible ?",
+            "Quels éléments de preuve demander pour valider un relevé d'étanchéité ?",
+        ],
+        "Électricité": [
+            "Quels contrôles documentaires effectuer avant la levée des réserves électriques ?",
+            "Quels justificatifs demander pour sécuriser la conformité d'un tableau électrique ?",
+        ],
+        "Sécurité chantier": [
+            "Quels risques réglementaires vérifier avant intervention en zone occupée ?",
+            "Quels documents exiger avant démarrage d'un lot à risque élevé ?",
+        ],
+    }
+
+    if "norm_question_text" not in st.session_state:
+        st.session_state.norm_question_text = ""
+    if "norm_scenario_text" not in st.session_state:
+        st.session_state.norm_scenario_text = ""
+    if st.session_state.pop("norm_question_reset_pending", False):
+        st.session_state.norm_question_text = ""
+    if st.session_state.pop("norm_scenario_reset_pending", False):
+        st.session_state.norm_scenario_text = ""
+
+    try:
+        stats = api_get("/regulatory/stats")
+        norm_docs = stats.get("documents", [])
+    except Exception:
+        stats = {"total_references": 0, "total_chunks": 0, "vector_store": "chroma"}
+        norm_docs = []
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Références réglementaires", stats.get("total_references", 0))
+    c2.metric("Extraits indexés", stats.get("total_chunks", 0))
+    c3.metric("Index réglementaire", "Actif")
+
+    upload_col, search_col = st.columns([0.92, 1.08])
+
+    with upload_col:
+        st.markdown("#### Bibliothèque réglementaire")
+        norm_files = st.file_uploader(
+            "Ajouter des références",
+            type=["pdf", "docx", "txt", "png", "jpg", "jpeg"],
+            accept_multiple_files=True,
+            key="norm_files",
+            help="DTU, normes, guides fournisseurs, notes bureau d'études ou extraits CCTP.",
+        )
+        c1, c2 = st.columns(2)
+        norm_family = c1.selectbox(
+            "Famille",
+            [
+                "DTU",
+                "Eurocode",
+                "NF / EN / ISO",
+                "CCTP",
+                "Guide technique",
+                "Note interne",
+            ],
+            key="norm_family",
+        )
+        norm_domain = c2.selectbox(
+            "Domaine",
+            [
+                "Structure",
+                "Gros œuvre",
+                "Étanchéité",
+                "Électricité",
+                "Plomberie",
+                "CVC",
+                "VRD",
+                "Sécurité",
+            ],
+            key="norm_domain",
+        )
+        norm_source = st.text_input("Source / organisme", "Base réglementaire E-MPGT", key="norm_source")
+
+        if st.button("Indexer dans le radar", type="primary", disabled=not norm_files):
+            payload_files = [
+                ("files", (file.name, file.getvalue(), file.type or "application/octet-stream"))
+                for file in norm_files
+            ]
+            data = {"family": norm_family, "domain": norm_domain, "source": norm_source}
+            try:
+                with st.spinner("Lecture, OCR et indexation des références..."):
+                    result = api_post("/regulatory/upload", files=payload_files, data=data)
+                st.success("Références ajoutées à l'index réglementaire")
+                st.dataframe(result, use_container_width=True)
+            except Exception as e:
+                st.error(f"Erreur indexation normative: {e}")
+
+        with st.expander("Références déjà indexées", expanded=False):
+            if norm_docs:
+                st.dataframe(norm_docs, use_container_width=True)
+            else:
+                st.info("Aucune référence réglementaire détectée pour le moment.")
+
+    with search_col:
+        st.markdown("#### Assistant conformité IA")
+        category = st.selectbox("Domaine de contrôle", list(question_catalog.keys()), key="norm_category")
+        selected_example = st.selectbox(
+            "Question proposée",
+            question_catalog[category],
+            key="norm_example",
+        )
+        c1, c2 = st.columns(2)
+        if c1.button("Utiliser cette question", key="use_norm_example"):
+            st.session_state.norm_question_text = selected_example
+            st.session_state.pop("norm_search_result", None)
+            st.rerun()
+        if c2.button("Réinitialiser la recherche", key="reset_norm_question"):
+            st.session_state.norm_question_text = ""
+            st.session_state.pop("norm_search_result", None)
+            st.rerun()
+        norm_question = st.text_area(
+            "Recherche réglementaire",
+            height=96,
+            key="norm_question_text",
+        )
+        c1, c2, c3 = st.columns(3)
+        norm_top_k = c1.slider("Citations", 3, 12, 6, key="norm_top_k")
+        norm_project = c2.text_input("Projet", "", key="norm_project")
+        norm_lot = c3.text_input("Lot", "", key="norm_lot")
+
+        if st.button("Analyser la conformité", type="primary", key="norm_search", disabled=not norm_question.strip()):
+            try:
+                with st.spinner("Recherche des clauses et synthèse réglementaire..."):
+                    result = api_post(
+                        "/regulatory/search",
+                        json={
+                            "question": norm_question,
+                            "top_k": norm_top_k,
+                            "project": norm_project,
+                            "lot": norm_lot,
+                        },
+                )
+                st.session_state.norm_search_result = result
+                st.session_state.norm_question_reset_pending = True
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erreur recherche normative: {e}")
+
+        result = st.session_state.get("norm_search_result")
+        if result:
+            st.markdown("##### Réponse structurée")
+            st.metric("Score de conformité", f"{result.get('conformity_score', 0)}%")
+            st.write(result.get("short_answer", ""))
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**Points de contrôle**")
+                for item in result.get("control_points", []):
+                    st.markdown(f"- {item}")
+            with c2:
+                st.markdown("**Justificatifs à demander**")
+                for item in result.get("required_evidence", []):
+                    st.markdown(f"- {item}")
+            st.caption(f"Niveau de confiance: {result.get('confidence', 'medium')}")
+            if result.get("limits"):
+                st.info(result["limits"])
+            sources = result.get("sources", [])
+            if sources:
+                with st.expander("Clauses et extraits retenus", expanded=True):
+                    for source in sources:
+                        st.markdown(
+                            f"**{source.get('filename', '')}** | "
+                            f"lot {source.get('lot', '') or '-'} | "
+                            f"score {source.get('relevance_score', 0)}"
+                        )
+                        st.write(source.get("excerpt", ""))
+
+    # Analyse de conformité chantier intentionally hidden from the dashboard.
+    # The backend endpoint /regulatory/decision remains available for future use.
 
 
 def render_email():
@@ -586,7 +788,7 @@ def render_bim():
 def render_dashboard():
     page_header(
         "Tableau de bord",
-        "Suivez l'etat de la base, les connecteurs et les analyses metier.",
+        "Suivez l'état de la base, les connecteurs et les analyses métier.",
     )
 
     try:
@@ -594,16 +796,18 @@ def render_dashboard():
         c1, c2, c3 = st.columns(3)
         c1.metric("Chunks", stats.get("total_chunks", 0))
         c2.metric("Documents", stats.get("total_documents", 0))
-        c3.metric("Vector store", stats.get("vector_store", ""))
+        c3.metric("Index IA", stats.get("vector_store", ""))
     except Exception as e:
         st.warning(f"Stats indisponibles: {e}")
 
-    tabs = st.tabs(["Email", "Conformite", "BIM"])
+    tabs = st.tabs(["Conformité réglementaire IA", "Audit risques", "Email", "BIM"])
     with tabs[0]:
-        render_email()
+        render_regulatory_cockpit()
     with tabs[1]:
         render_analysis()
     with tabs[2]:
+        render_email()
+    with tabs[3]:
         render_bim()
 
 
@@ -618,15 +822,15 @@ def render_knowledge():
         c1, c2, c3 = st.columns(3)
         c1.metric("Chunks", stats.get("total_chunks", 0))
         c2.metric("Documents", stats.get("total_documents", 0))
-        c3.metric("Vector store", stats.get("vector_store", ""))
+        c3.metric("Index IA", stats.get("vector_store", ""))
         st.dataframe(stats.get("documents", []), use_container_width=True)
     except Exception as e:
         st.error(f"Impossible de charger les stats: {e}")
 
-    if st.button("Reset vector store"):
+    if st.button("Réinitialiser l'index IA"):
         try:
             api_post("/reset")
-            st.success("Vector store vide")
+            st.success("Index IA vidé")
         except Exception as e:
             st.error(f"Erreur reset: {e}")
 

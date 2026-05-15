@@ -36,6 +36,20 @@ class ComplianceRequest(BaseModel):
     top_k: int = Field(default=8, ge=1, le=20)
 
 
+class RegulatorySearchRequest(BaseModel):
+    question: str = Field(..., min_length=1)
+    project: str = ""
+    lot: str = ""
+    top_k: int = Field(default=6, ge=1, le=20)
+
+
+class RegulatoryDecisionRequest(BaseModel):
+    scenario: str = Field(..., min_length=1)
+    project: str = ""
+    lot: str = ""
+    top_k: int = Field(default=8, ge=1, le=20)
+
+
 class UploadResponse(BaseModel):
     filename: str
     chunks: int

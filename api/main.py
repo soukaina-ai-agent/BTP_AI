@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from api.dependencies import rag_service
-from api.routes import analysis, bim, documents, email, query, system
+from api.routes import analysis, bim, documents, email, query, regulatory, system
 from services.knowledge_service import autoload_knowledge
 
 logging.basicConfig(
@@ -55,5 +55,6 @@ app.include_router(system.router)
 app.include_router(documents.router)
 app.include_router(query.router)
 app.include_router(analysis.router)
+app.include_router(regulatory.router)
 app.include_router(email.router)
 app.include_router(bim.router)
