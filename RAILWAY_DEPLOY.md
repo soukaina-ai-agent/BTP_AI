@@ -69,13 +69,21 @@ models.
 Set `SKIP_DTU_AUTOLOAD=false` later if you want the built-in knowledge base to
 load at startup. Keeping it `true` makes Railway deployment startup faster.
 
-## 5. Optional Streamlit Service
+## 5. Frontend Streamlit Service
 
-Create a second Railway service for Streamlit with the same repo and a start
-command like:
+Create a second Railway service for Streamlit with the same repo.
+
+Use:
+
+```text
+Dockerfile path: /Dockerfile.frontend
+Public target port: 8080
+```
+
+Use this custom start command:
 
 ```bash
-streamlit run frontend/streamlit_app.py --server.address 0.0.0.0 --server.port $PORT
+sh -c 'unset STREAMLIT_SERVER_PORT; streamlit run frontend/streamlit_app.py --server.address 0.0.0.0 --server.port ${PORT:-8080} --server.headless true'
 ```
 
 Set:
@@ -83,6 +91,10 @@ Set:
 ```env
 API_URL=https://your-backend-service.up.railway.app
 ```
+
+Do not set `STREAMLIT_SERVER_PORT=$PORT` in Railway variables. Streamlit expects
+that variable to be a real integer, and it will fail if it receives the literal
+string `$PORT`.
 
 ## 6. Test After Deploy
 
